@@ -149,7 +149,7 @@ class UsuarioViewSets(viewsets.ModelViewSet):
             return Response({
                 'erro': 'Usuário não encontrado'
             }, status=status.HTTP_404_NOT_FOUND)
-    
+  
     # ========== RECUPERAÇÃO DE SENHA ==========
     
     @action(detail=False, methods=['post'],
