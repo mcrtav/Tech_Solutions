@@ -2,6 +2,9 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.contrib.auth.hashers import make_password, check_password
+import secrets
+from datetime import timedelta
+from django.utils import timezone
 
 class Usuario(models.Model):
     
@@ -39,6 +42,21 @@ class Usuario(models.Model):
     
     atualizado = models.DateTimeField(auto_now=True,
                     verbose_name='Atualizado em')
+    
+    reset_token = models.CharField(
+        max_length=100,
+        verbose_name='Token de Recuperação',
+        blank=True,
+        null=True,
+        help_text='Token para recuperação de senha'
+    )
+    
+    reset_token_expires = models.DateTimeField(
+        verbose_name='Expiração do Token',
+        blank=True,
+        null=True,
+        help_text='Data e hora de expiração do token de recuperação'
+    )
     
     class Meta:
         # nome da tabela
@@ -108,3 +126,48 @@ class Usuario(models.Model):
             if len(numeros) == 11:
                 return f'({numeros[:2]}) {numeros[2:7]}-{numeros[7:]}'
         return self.telefone
+    
+    # MÉTODOS NOVOS PARA RECUPERAÇÃO DE SENHA
+    def gerar_token_recuperacao(self):
+        """
+        Gera um token único para recuperação de senha
+        """
+        # Gera um token seguro
+        token = secrets.token_urlsafe(50)
+        
+        # Define expiração (1 hora a partir de agora)
+        self.reset_token = token
+        self.reset_token_expires = timezone.now() + timedelta(hours=1)
+        
+        # Salva no banco
+        self.save(update_fields=['reset_token', 'reset_token_expires'])
+        
+        return token
+    
+    def validar_token_recuperacao(self, token):
+        """
+        Verifica se o token é válido e não expirou
+        """
+        if not self.reset_token or not self.reset_token_expires:
+            return False
+        
+        # Verifica se o token corresponde e não expirou
+        if self.reset_token != token:
+            return False
+        
+        if timezone.now() > self.reset_token_expires:
+            # Token expirado - limpa os campos
+            self.reset_token = None
+            self.reset_token_expires = None
+            self.save(update_fields=['reset_token', 'reset_token_expires'])
+            return False
+        
+        return True
+    
+    def limpar_token_recuperacao(self):
+        """
+        Limpa os campos de token de recuperação
+        """
+        self.reset_token = None
+        self.reset_token_expires = None
+        self.save(update_fields=['reset_token', 'reset_token_expires'])
