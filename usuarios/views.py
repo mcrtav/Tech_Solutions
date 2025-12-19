@@ -254,7 +254,8 @@ class UsuarioViewSets(viewsets.ModelViewSet):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # ========== ACTIONS PRIVADAS ==========
-    
+        
+        # views.py - método perfil corrigido
     @action(detail=False, methods=['get'],
             url_path='perfil',
             permission_classes=[IsAuthenticated])
@@ -263,19 +264,25 @@ class UsuarioViewSets(viewsets.ModelViewSet):
         GET /usuarios/perfil/
         Retorna informações do perfil do usuário autenticado
         """
-        user_id = request.auth.payload.get('user_id')
-        
         try:
-            usuario = Usuario.objects.get(id=user_id)
-            serializer = UsuarioSerializer(usuario)
+            # Obter o usuário diretamente do request.user
+            usuario = request.user
             
+            # Verificar se o usuário foi corretamente autenticado
+            if not usuario or usuario.is_anonymous:
+                return Response({
+                    'erro': 'Usuário não autenticado'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            serializer = UsuarioSerializer(usuario)
             return Response(serializer.data, status=status.HTTP_200_OK)
             
-        except Usuario.DoesNotExist:
+        except Exception as e:
             return Response({
-                'erro': 'Usuário não encontrado'
-            }, status=status.HTTP_404_NOT_FOUND)
-    
+                'erro': 'Erro ao buscar perfil',
+                'detalhes': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
     def destroy(self, request, pk=None):
         """
         DELETE /usuarios/{id}/
@@ -284,8 +291,7 @@ class UsuarioViewSets(viewsets.ModelViewSet):
         usuario = self.get_object()
         
         # Verificar se o usuário logado é o mesmo que quer deletar
-        user_id = request.auth.payload.get('user_id')
-        if usuario.id != user_id:
+        if usuario.id != request.user.id:
             return Response({
                 'erro': 'Você só pode deletar seu próprio perfil'
             }, status=status.HTTP_403_FORBIDDEN)
@@ -296,6 +302,7 @@ class UsuarioViewSets(viewsets.ModelViewSet):
             'mensagem': f'Usuário {nome} deletado com sucesso'
         }, status=status.HTTP_200_OK)
     
+        
     def partial_update(self, request, pk=None):
         """
         PATCH /usuarios/{id}/
@@ -304,8 +311,7 @@ class UsuarioViewSets(viewsets.ModelViewSet):
         usuario = self.get_object()
         
         # Verificar se é o próprio usuário
-        user_id = request.auth.payload.get('user_id')
-        if usuario.id != user_id:
+        if usuario.id != request.user.id:
             return Response({
                 'erro': 'Você só pode atualizar seu próprio perfil'
             }, status=status.HTTP_403_FORBIDDEN)
@@ -326,7 +332,7 @@ class UsuarioViewSets(viewsets.ModelViewSet):
         return Response({
             'erro': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @action(detail=True, methods=['post'], 
             url_path='alterar-senha', 
             permission_classes=[IsAuthenticated])
@@ -339,8 +345,7 @@ class UsuarioViewSets(viewsets.ModelViewSet):
             usuario = self.get_object()
             
             # Verificar se o usuário logado é o dono do perfil
-            user_id = request.auth.payload.get('user_id')
-            if usuario.id != user_id:
+            if usuario.id != request.user.id:
                 return Response({
                     'erro': 'Você só pode alterar sua própria senha'
                 }, status=status.HTTP_403_FORBIDDEN)
