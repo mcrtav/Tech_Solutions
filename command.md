@@ -11,4 +11,8 @@ python manage.py migrate
 python manage.py seed_produtos
 
 
-python manage.py runserver 808
+python manage.py runserver 8080
+
+git add .
+git commit -m "9º commit - OK"
+git push -u origin main
