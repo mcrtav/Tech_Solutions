@@ -1,4 +1,6 @@
+# usuarios/models.py
 from django.db import models
+from django.core.validators import RegexValidator
 from django.contrib.auth.hashers import make_password, check_password
 
 class Usuario(models.Model):
@@ -7,16 +9,34 @@ class Usuario(models.Model):
                     verbose_name='Nome',
                     help_text='Nome completo do usuário',
                     null=False)
+    
     email = models.EmailField(unique=True, 
                     verbose_name='E-mail',
                     help_text='E-mail do usuário',
                     null=False)
+    
+    telefone = models.CharField(
+        max_length=15,
+        verbose_name='Telefone',
+        help_text='Telefone no formato (XX) XXXXX-XXXX',
+        null=True,  # Pode ser nulo inicialmente
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\(\d{2}\) \d{5}-\d{4}$',
+                message='Telefone deve estar no formato (XX) XXXXX-XXXX'
+            )
+        ]
+    )
+    
     senha = models.CharField(max_length=255,
                     verbose_name='Senha',
                     help_text='Senha do usuário',
                     null=False)
+    
     criado = models.DateTimeField(auto_now_add=True,
                     verbose_name='Criado em')
+    
     atualizado = models.DateTimeField(auto_now=True,
                     verbose_name='Atualizado em')
     
@@ -25,10 +45,7 @@ class Usuario(models.Model):
         db_table = 'usuarios'
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
-        ordering = ['nome'] #ordena por nome (ordem alfabetica)
-        # se fosse por data de criação
-        # ordering = ['-criado'] 
-        # ordem do mais recente (decrescente)
+        ordering = ['nome']  # ordena por nome (ordem alfabetica)
     
     def __repr__(self):
         """
@@ -44,13 +61,9 @@ class Usuario(models.Model):
         """
         return f'{self.nome} ({self.email})'
 
-# NÃO precisa do app/modulo produtos
     def verificar_senha(self, senha_texto):
         return check_password(senha_texto, self.senha)
-        # a primeira senha é sempre a digitada no momento
-        # a segunda senha vem do banco de dados
         
-# NÃO precisa do app/modulo produtos
     def save(self, *args, **kwargs):
         # args = argumentos posicionais
         # kwargs = argumentos nomeados
@@ -84,12 +97,14 @@ class Usuario(models.Model):
         logados)
         '''
         return False
-
-
-
-
-
-
-
-
-
+    
+    def formatar_telefone(self):
+        """
+        Retorna o telefone formatado
+        """
+        if self.telefone:
+            # Remove caracteres não numéricos e formata
+            numeros = ''.join(filter(str.isdigit, self.telefone))
+            if len(numeros) == 11:
+                return f'({numeros[:2]}) {numeros[2:7]}-{numeros[7:]}'
+        return self.telefone
